@@ -12,14 +12,27 @@ export default function Home() {
   const [checkingLeague, setCheckingLeague] = useState(true)
 
   useEffect(() => {
+    console.log('Env check:', {
+        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL
+    })
     if (user) {
       checkLeagueMembership()
+    } else if (!loading) {
+      // If no user and auth finished loading, stop checking
+      setCheckingLeague(false)
     }
-  }, [user])
+  }, [user, loading])
 
   async function checkLeagueMembership() {
+    // Add timeout
+    const timeout = setTimeout(() => {
+      console.warn('League check timed out')
+      setCheckingLeague(false)
+    }, 3000)
+
     try {
-      // Check if user owns a league
       const { data: ownedLeague } = await supabase
         .from('leagues')
         .select('id')
@@ -27,12 +40,12 @@ export default function Home() {
         .maybeSingle()
 
       if (ownedLeague) {
+        clearTimeout(timeout)
         setHasLeague(true)
         setCheckingLeague(false)
         return
       }
 
-      // Check if user has a roster (is a member)
       const { data: roster } = await supabase
         .from('fantasy_rosters')
         .select('id')
@@ -40,15 +53,18 @@ export default function Home() {
         .limit(1)
         .maybeSingle()
 
+      clearTimeout(timeout)
       setHasLeague(!!roster)
     } catch (error) {
+      clearTimeout(timeout)
       console.error('Error checking league:', error)
     } finally {
       setCheckingLeague(false)
     }
   }
 
-  if (loading || checkingLeague) {
+  // Show loading only while auth OR league check is happening
+  if (loading) {
     return (
       <div className="min-h-screen bg-dark-900 flex items-center justify-center">
         <div className="text-xl text-gray-400">Loading...</div>
@@ -60,6 +76,7 @@ export default function Home() {
     return <LoginPage />
   }
 
+  // Show content even if league check is still happening
   return (
     <div className="min-h-screen bg-dark-900">
       <div className="max-w-7xl mx-auto px-4 py-16">
@@ -89,7 +106,7 @@ export default function Home() {
             <p className="text-gray-400">Enter an invite code</p>
           </Link>
 
-          {hasLeague && (
+          {!checkingLeague && hasLeague && (
             <Link
               href="/draft"
               className="bg-dark-800 hover:bg-dark-700 p-8 rounded-lg text-center transition border-2 border-primary-600"
