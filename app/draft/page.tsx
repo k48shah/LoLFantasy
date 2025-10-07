@@ -16,6 +16,8 @@ export default function DraftPage() {
   const [selectedRole, setSelectedRole] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [showInviteCode, setShowInviteCode] = useState(false)
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('disconnected')
+
 
 
   useEffect(() => {
@@ -84,7 +86,12 @@ function subscribeToUpdates() {
   if (!league) return () => {}
 
   const channel = supabase
-    .channel(`draft-updates-${league.id}`) // Unique channel per league
+    .channel(`draft-updates-${league.id}`, {
+      config: {
+        broadcast: { self: false },
+        presence: { key: user!.id }
+      }
+    })
     .on(
       'postgres_changes',
       {
@@ -94,32 +101,13 @@ function subscribeToUpdates() {
         filter: `league_id=eq.${league.id}`,
       },
       (payload) => {
-        console.log('🎯 Player drafted via subscription:', payload.new)
-        
-        // Add to drafted players
-        setDraftedPlayers(prev => {
-          const newSet = new Set(Array.from(prev))
-          newSet.add(payload.new.player_id)
-          return newSet
-        })
-        
-        // Don't increment pick if it was our own draft
-        // (we already incremented it locally)
-        if (payload.new.user_id !== user!.id) {
-          setCurrentPick(prev => prev + 1)
-        }
-        
-        // Update turn status
-        const draftOrder = league.draft_order as string[]
-        const nextPick = currentPick + 1
-        const nextPickIndex = getCurrentPickUser(nextPick, draftOrder.length)
-        setIsMyTurn(draftOrder[nextPickIndex] === user!.id)
-        
-        console.log('Updated state - next pick:', nextPick, 'my turn:', draftOrder[nextPickIndex] === user!.id)
+        console.log('🎯 Real-time update received:', payload.new)
+        handleDraftUpdate(payload.new)
       }
     )
     .subscribe((status) => {
-      console.log('Subscription status:', status)
+      console.log('📡 Subscription status:', status)
+      setSubscriptionStatus(status)
     })
 
   console.log('✅ Subscribed to draft updates for league:', league.id)
@@ -130,13 +118,71 @@ function subscribeToUpdates() {
   }
 }
 
+// Separate handler for draft updates
+function handleDraftUpdate(newRoster: any) {
+  console.log('Processing draft update:', newRoster)
+  
+  // Update drafted players
+  setDraftedPlayers(prev => {
+    const newSet = new Set(Array.from(prev))
+    newSet.add(newRoster.player_id)
+    return newSet
+  })
+  
+  // Update current pick
+  setCurrentPick(prevPick => {
+    const newPick = prevPick + 1
+    console.log('Pick incremented from', prevPick, 'to', newPick)
+    return newPick
+  })
+}
+
     // Update useEffect to include league dependency
     useEffect(() => {
-    if (!authLoading && user && league) {
-        const cleanup = subscribeToUpdates()
-        return cleanup
+    if (!league || !user) return
+
+    const pollInterval = setInterval(async () => {
+        try {
+        // Get current league state from database
+        const { data: leagueData } = await supabase
+            .from('leagues')
+            .select('current_pick')
+            .eq('id', league.id)
+            .single()
+
+        if (leagueData && leagueData.current_pick !== currentPick) {
+            console.log('🔄 Polling detected pick change:', leagueData.current_pick)
+            setCurrentPick(leagueData.current_pick)
+            
+            // Also refresh drafted players
+            const { data: rostersData } = await supabase
+            .from('fantasy_rosters')
+            .select('player_id')
+            .eq('league_id', league.id)
+
+            if (rostersData) {
+            setDraftedPlayers(new Set(rostersData.map(r => r.player_id)))
+            }
+        }
+        } catch (error) {
+        console.error('Polling error:', error)
+        }
+    }, 3000) // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval)
+    }, [league?.id, currentPick, user])
+
+    // Keep the useEffect that syncs isMyTurn
+    useEffect(() => {
+    if (league && league.draft_order && user) {
+        const draftOrder = league.draft_order as string[]
+        const currentPickIndex = getCurrentPickUser(currentPick, draftOrder.length)
+        const myTurn = draftOrder[currentPickIndex] === user.id
+        
+        console.log('🎯 Turn check - Pick:', currentPick, 'Index:', currentPickIndex, 'Their ID:', draftOrder[currentPickIndex], 'My ID:', user.id, 'My turn:', myTurn)
+        setIsMyTurn(myTurn)
     }
-    }, [user, authLoading, league?.id]) 
+    }, [currentPick, league, user])
 
   function getCurrentPickUser(pickNum: number, teamCount: number): number {
     const round = Math.floor((pickNum - 1) / teamCount)
@@ -279,9 +325,15 @@ async function draftPlayer(playerId: string) {
               <Trophy className="w-8 h-8 text-primary-500" />
               {league.name} - Draft
             </h1>
-            <p className="text-gray-400 mt-2">
-              Pick #{currentPick} • Round {Math.floor((currentPick - 1) / (league.draft_order as string[]).length) + 1}
-            </p>
+    <p className="text-gray-400 mt-2">
+      Pick #{currentPick} • Round {Math.floor((currentPick - 1) / (league.draft_order as string[]).length) + 1}
+      {subscriptionStatus === 'SUBSCRIBED' && (
+        <span className="ml-2 text-green-400 text-xs">● Live</span>
+      )}
+      {subscriptionStatus !== 'SUBSCRIBED' && (
+        <span className="ml-2 text-yellow-400 text-xs">● Syncing...</span>
+      )}
+    </p>
           </div>
           <div className={`px-6 py-3 rounded-lg font-bold ${isMyTurn ? 'bg-primary-600 text-white' : 'bg-dark-700 text-gray-400'}`}>
             {isMyTurn ? '🎯 YOUR TURN' : 'Waiting...'}
