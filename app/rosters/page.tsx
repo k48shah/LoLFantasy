@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../components/AuthProvider'
 import { Player, FantasyRoster, User } from '../../lib/supabase'
 import { getUserLeague } from '../../lib/league-helpers'
-import { Users, ArrowRightLeft, Star, X } from 'lucide-react'
+import { Users, Star, X } from 'lucide-react'
 
 interface RosterWithPlayer extends FantasyRoster {
   player: Player
@@ -40,7 +40,6 @@ export default function RostersPage() {
 
       if (error) throw error
 
-      // Reload rosters
       loadRosters()
     } catch (error) {
       console.error('Error undrafting player:', error)
@@ -49,24 +48,53 @@ export default function RostersPage() {
 
   async function loadRosters() {
     try {
-      // Get user's league
       const leagueData = await getUserLeague(user!.id)
 
-      if (!leagueData) return
+      if (!leagueData) {
+        console.log('No league found')
+        setLoading(false)
+        return
+      }
 
-      // Get all rosters with players and users
-      const { data: rostersData } = await supabase
+      console.log('League found:', leagueData.name)
+
+      // Get all users in the league
+      const draftOrder = leagueData.draft_order as string[] || []
+      console.log('Draft order:', draftOrder)
+      
+      const { data: leagueUsers, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .in('id', draftOrder)
+
+      console.log('League users:', leagueUsers)
+      console.log('Users error:', usersError)
+
+      if (!leagueUsers || leagueUsers.length === 0) {
+        console.error('No users found in league')
+        setLoading(false)
+        return
+      }
+
+      // Get all rosters (without join - we'll join manually)
+      const { data: rostersData, error: rostersError } = await supabase
         .from('fantasy_rosters')
-        .select(`
-          *,
-          player:players(*),
-          user:users(*)
-        `)
+        .select('*')
         .eq('league_id', leagueData.id)
 
-      if (!rostersData) return
+      console.log('Rosters data:', rostersData)
+      console.log('Rosters error:', rostersError)
 
-      // Get fantasy points for each player
+      // Get all players
+      const playerIds = rostersData?.map(r => r.player_id) || []
+      const { data: playersData } = await supabase
+        .from('players')
+        .select('*')
+        .in('id', playerIds)
+
+      console.log('Players data:', playersData)
+
+      // Get fantasy points
       const { data: statsData } = await supabase
         .from('match_stats')
         .select('player_id, fantasy_points')
@@ -77,40 +105,63 @@ export default function RostersPage() {
         pointsMap.set(stat.player_id, current + stat.fantasy_points)
       })
 
-      // Group by user
+      // Create lookup maps
+      const usersMap = new Map(leagueUsers.map(u => [u.id, u]))
+      const playersMap = new Map(playersData?.map(p => [p.id, p]) || [])
+
+      // Initialize teams for all users
       const teamMap = new Map<string, TeamRoster>()
       
-      rostersData.forEach((roster: any) => {
-        if (!teamMap.has(roster.user_id)) {
-          teamMap.set(roster.user_id, {
-            user: roster.user,
-            starters: [],
-            bench: [],
-            totalPoints: 0,
-          })
+      leagueUsers.forEach(leagueUser => {
+        teamMap.set(leagueUser.id, {
+          user: leagueUser,
+          starters: [],
+          bench: [],
+          totalPoints: 0,
+        })
+      })
+
+      // Add rosters to teams
+      rostersData?.forEach((roster) => {
+        const rosterUser = usersMap.get(roster.user_id)
+        const rosterPlayer = playersMap.get(roster.player_id)
+
+        if (!rosterUser) {
+          console.warn('User not found for roster:', roster.user_id)
+          return
         }
 
-        const team = teamMap.get(roster.user_id)!
-        const rosterWithPoints = {
+        if (!rosterPlayer) {
+          console.warn('Player not found for roster:', roster.player_id)
+          return
+        }
+
+        const team = teamMap.get(roster.user_id)
+        if (!team) {
+          console.warn('Team not initialized for user:', roster.user_id)
+          return
+        }
+
+        const rosterWithPlayer: RosterWithPlayer = {
           ...roster,
           player: {
-            ...roster.player,
+            ...rosterPlayer,
             totalPoints: pointsMap.get(roster.player_id) || 0,
-          }
+          } as any
         }
 
         if (roster.is_starter) {
-          team.starters.push(rosterWithPoints)
-          team.totalPoints += rosterWithPoints.player.totalPoints
+          team.starters.push(rosterWithPlayer)
+          team.totalPoints += (rosterWithPlayer.player as any).totalPoints || 0
         } else {
-          team.bench.push(rosterWithPoints)
+          team.bench.push(rosterWithPlayer)
         }
       })
 
       const teamRosters = Array.from(teamMap.values())
+      console.log('Final team rosters:', teamRosters)
       setRosters(teamRosters)
       
-      // Auto-select current user's team
       setSelectedTeam(user!.id)
       setLoading(false)
     } catch (error) {
@@ -125,88 +176,96 @@ export default function RostersPage() {
 
   const currentTeam = rosters.find(r => r.user.id === selectedTeam)
 
-return (
-  <div className="min-h-screen bg-dark-900 py-8">
-    <div className="max-w-7xl mx-auto px-4">
-      <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-        <Users className="w-8 h-8 text-primary-500" />
-        Team Rosters
-      </h1>
+  return (
+    <div className="min-h-screen bg-dark-900 py-8">
+      <div className="max-w-7xl mx-auto px-4">
+        <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+          <Users className="w-8 h-8 text-primary-500" />
+          Team Rosters
+        </h1>
 
-      {/* Team Selector */}
-      <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
-        {rosters.map(roster => (
-          <button
-            key={roster.user.id}
-            onClick={() => setSelectedTeam(roster.user.id)}
-            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
-              selectedTeam === roster.user.id
-                ? 'bg-primary-600 text-white'
-                : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-            }`}
-          >
-            {roster.user.username}
-            <span className="ml-2 text-xs opacity-75">
-              {roster.totalPoints.toFixed(1)} pts
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Roster Display */}
-      {currentTeam && (
-        <div className="space-y-6">
-          {/* Starters */}
-          <div className="bg-dark-800 rounded-lg p-6">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <Star className="w-5 h-5 text-yellow-500" />
-              Starting Lineup
-            </h2>
-            <div className="space-y-3">
-              {currentTeam.starters.map(roster => (
-                <RosterPlayerCard
-                  key={roster.id}
-                  roster={roster}
-                  isStarter={true}
-                  canManage={selectedTeam === user!.id}
-                  onUndraft={undraftPlayer}
-                />
+        {rosters.length === 0 ? (
+          <div className="bg-dark-800 rounded-lg p-8 text-center text-gray-400">
+            No rosters found. Start drafting players!
+          </div>
+        ) : (
+          <>
+            <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+              {rosters.map(roster => (
+                <button
+                  key={roster.user.id}
+                  onClick={() => setSelectedTeam(roster.user.id)}
+                  className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
+                    selectedTeam === roster.user.id
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                  }`}
+                >
+                  {roster.user.username}
+                  <span className="ml-2 text-xs opacity-75">
+                    {roster.totalPoints.toFixed(1)} pts
+                  </span>
+                </button>
               ))}
             </div>
-          </div>
 
-          {/* Bench */}
-          {currentTeam.bench.length > 0 && (
-            <div className="bg-dark-800 rounded-lg p-6">
-              <h2 className="text-xl font-bold text-white mb-4">Bench</h2>
-              <div className="space-y-3">
-                {currentTeam.bench.map(roster => (
-                  <RosterPlayerCard
-                    key={roster.id}
-                    roster={roster}
-                    isStarter={false}
-                    canManage={selectedTeam === user!.id}
-                    onUndraft={undraftPlayer}
-                  />
-                ))}
+            {currentTeam && (
+              <div className="space-y-6">
+                <div className="bg-dark-800 rounded-lg p-6">
+                  <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Star className="w-5 h-5 text-yellow-500" />
+                    Starting Lineup
+                  </h2>
+                  {currentTeam.starters.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">No players drafted yet</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {currentTeam.starters.map(roster => (
+                        <RosterPlayerCard
+                          key={roster.id}
+                          roster={roster}
+                          isStarter={true}
+                          canManage={selectedTeam === user!.id}
+                          onUndraft={undraftPlayer}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {currentTeam.bench.length > 0 && (
+                  <div className="bg-dark-800 rounded-lg p-6">
+                    <h2 className="text-xl font-bold text-white mb-4">Bench</h2>
+                    <div className="space-y-3">
+                      {currentTeam.bench.map(roster => (
+                        <RosterPlayerCard
+                          key={roster.id}
+                          roster={roster}
+                          isStarter={false}
+                          canManage={selectedTeam === user!.id}
+                          onUndraft={undraftPlayer}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-dark-800 rounded-lg p-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold text-white">Total Fantasy Points</span>
+                    <span className="text-3xl font-bold text-primary-500">
+                      {currentTeam.totalPoints.toFixed(1)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Total Points */}
-          <div className="bg-dark-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <span className="text-xl font-bold text-white">Total Fantasy Points</span>
-              <span className="text-3xl font-bold text-primary-500">
-                {currentTeam.totalPoints.toFixed(1)}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+            )}
+          </>
+        )}
+      </div>
     </div>
-  </div>
-)}
+  )
+}
 
 function RosterPlayerCard({ 
   roster, 
