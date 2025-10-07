@@ -213,10 +213,6 @@ export default function StandingsPage() {
         )}
     <div className="min-h-screen bg-dark-900 py-8">
       <div className="max-w-7xl mx-auto px-4">
-        <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-          <BarChart3 className="w-8 h-8 text-primary-500" />
-          League Standings
-        </h1>
 
         {/* Standings Table */}
         <div className="bg-dark-800 rounded-lg overflow-hidden mb-8">

@@ -80,36 +80,55 @@ export default function DraftPage() {
     }
     }
 
-    function subscribeToUpdates() {
-    if (!league) return
+function subscribeToUpdates() {
+  if (!league) return () => {}
 
-    const channel = supabase
-        .channel('draft-updates')
-        .on(
-        'postgres_changes',
-        {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'fantasy_rosters',
-            filter: `league_id=eq.${league.id}`, // Add filter for your league only
-        },
-        (payload) => {
-            console.log('🎯 Player drafted:', payload.new)
-            setDraftedPlayers(prev => new Set([...prev, payload.new.player_id]))
-            setCurrentPick(prev => prev + 1)
-            
-            // Update turn status
-            const draftOrder = league.draft_order as string[]
-            const nextPickIndex = getCurrentPickUser(currentPick + 1, draftOrder.length)
-            setIsMyTurn(draftOrder[nextPickIndex] === user!.id)
+  const channel = supabase
+    .channel(`draft-updates-${league.id}`) // Unique channel per league
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'fantasy_rosters',
+        filter: `league_id=eq.${league.id}`,
+      },
+      (payload) => {
+        console.log('🎯 Player drafted via subscription:', payload.new)
+        
+        // Add to drafted players
+        setDraftedPlayers(prev => {
+          const newSet = new Set(Array.from(prev))
+          newSet.add(payload.new.player_id)
+          return newSet
+        })
+        
+        // Don't increment pick if it was our own draft
+        // (we already incremented it locally)
+        if (payload.new.user_id !== user!.id) {
+          setCurrentPick(prev => prev + 1)
         }
-        )
-        .subscribe()
+        
+        // Update turn status
+        const draftOrder = league.draft_order as string[]
+        const nextPick = currentPick + 1
+        const nextPickIndex = getCurrentPickUser(nextPick, draftOrder.length)
+        setIsMyTurn(draftOrder[nextPickIndex] === user!.id)
+        
+        console.log('Updated state - next pick:', nextPick, 'my turn:', draftOrder[nextPickIndex] === user!.id)
+      }
+    )
+    .subscribe((status) => {
+      console.log('Subscription status:', status)
+    })
 
-    return () => {
-        supabase.removeChannel(channel)
-    }
-    }
+  console.log('✅ Subscribed to draft updates for league:', league.id)
+
+  return () => {
+    console.log('🔌 Unsubscribing from draft updates')
+    supabase.removeChannel(channel)
+  }
+}
 
     // Update useEffect to include league dependency
     useEffect(() => {
@@ -117,7 +136,7 @@ export default function DraftPage() {
         const cleanup = subscribeToUpdates()
         return cleanup
     }
-    }, [user, authLoading, league]) 
+    }, [user, authLoading, league?.id]) 
 
   function getCurrentPickUser(pickNum: number, teamCount: number): number {
     const round = Math.floor((pickNum - 1) / teamCount)
@@ -128,79 +147,85 @@ export default function DraftPage() {
   }
 
 
-    async function draftPlayer(playerId: string) {
-    if (!isMyTurn || !league) return
-    
-    // Check if already drafted (local state)
-    if (draftedPlayers.has(playerId)) {
-        alert('This player has already been drafted!')
-        return
-    }
+async function draftPlayer(playerId: string) {
+  if (!isMyTurn || !league) return
+  
+  if (draftedPlayers.has(playerId)) {
+    alert('This player has already been drafted!')
+    return
+  }
 
-    // Optimistic update - immediately mark as drafted
-    setDraftedPlayers(prev => new Set([...prev, playerId]))
+  // Optimistic update
+  setDraftedPlayers(prev => {
+    const newSet = new Set(Array.from(prev))
+    newSet.add(playerId)
+    return newSet
+  })
 
-    try {
-        const { error } = await supabase
-        .from('fantasy_rosters')
-        .insert({
-            league_id: league.id,
-            user_id: user!.id,
-            player_id: playerId,
-            is_starter: true,
-        })
+  try {
+    const { error } = await supabase
+      .from('fantasy_rosters')
+      .insert({
+        league_id: league.id,
+        user_id: user!.id,
+        player_id: playerId,
+        is_starter: true,
+      })
 
-        if (error) {
-        // If error, revert the optimistic update
-        setDraftedPlayers(prev => {
-            const newSet = new Set(prev)
-            newSet.delete(playerId)
-            return newSet
-        })
-        
-        if (error.code === '23505') {
-            alert('This player was just drafted by someone else!')
-        } else {
-            console.error('Error drafting player:', error)
-            alert('Failed to draft player. Please try again.')
-        }
-        return
-        }
-
-        // Update league current pick
-        await supabase
-        .from('leagues')
-        .update({ current_pick: currentPick + 1 })
-        .eq('id', league.id)
-
-        // Record draft pick
-        await supabase
-        .from('draft_picks')
-        .insert({
-            league_id: league.id,
-            user_id: user!.id,
-            player_id: playerId,
-            pick_number: currentPick,
-            round: Math.floor((currentPick - 1) / (league.draft_order as string[]).length) + 1,
-        })
-
-        // Update local state
-        setCurrentPick(prev => prev + 1)
-        const draftOrder = league.draft_order as string[]
-        const nextPickIndex = getCurrentPickUser(currentPick + 1, draftOrder.length)
-        setIsMyTurn(draftOrder[nextPickIndex] === user!.id)
-
-    } catch (error) {
-        // Revert optimistic update on any error
-        setDraftedPlayers(prev => {
-        const newSet = new Set(prev)
+    if (error) {
+      // Revert optimistic update
+      setDraftedPlayers(prev => {
+        const newSet = new Set(Array.from(prev))
         newSet.delete(playerId)
         return newSet
-        })
+      })
+      
+      if (error.code === '23505') {
+        alert('This player was just drafted by someone else!')
+      } else {
         console.error('Error drafting player:', error)
         alert('Failed to draft player. Please try again.')
+      }
+      return
     }
-    }
+
+    // Update league current pick
+    const newPick = currentPick + 1
+    await supabase
+      .from('leagues')
+      .update({ current_pick: newPick })
+      .eq('id', league.id)
+
+    // Record draft pick
+    await supabase
+      .from('draft_picks')
+      .insert({
+        league_id: league.id,
+        user_id: user!.id,
+        player_id: playerId,
+        pick_number: currentPick,
+        round: Math.floor((currentPick - 1) / (league.draft_order as string[]).length) + 1,
+      })
+
+    // Update local state (increment our own pick)
+    setCurrentPick(newPick)
+    const draftOrder = league.draft_order as string[]
+    const nextPickIndex = getCurrentPickUser(newPick, draftOrder.length)
+    setIsMyTurn(draftOrder[nextPickIndex] === user!.id)
+
+    console.log('✅ Successfully drafted player')
+
+  } catch (error) {
+    // Revert optimistic update
+    setDraftedPlayers(prev => {
+      const newSet = new Set(Array.from(prev))
+      newSet.delete(playerId)
+      return newSet
+    })
+    console.error('Error drafting player:', error)
+    alert('Failed to draft player. Please try again.')
+  }
+}
 
   const filteredPlayers = players.filter(p => {
     const roleMatch = selectedRole === 'all' || p.role === selectedRole
@@ -405,13 +430,19 @@ function DraftTurnOrder({
 
   async function loadTeamNames() {
     const draftOrder = league.draft_order as string[]
-    const { data } = await supabase
+    
+    console.log('Loading names for draft order:', draftOrder)
+    
+    const { data, error } = await supabase
       .from('users')
       .select('id, username')
       .in('id', draftOrder)
 
+    console.log('Users loaded:', data, error)
+
     if (data) {
       const nameMap = new Map(data.map(u => [u.id, u.username]))
+      console.log('Name map:', nameMap)
       setTeamNames(nameMap)
     }
   }
@@ -421,7 +452,6 @@ function DraftTurnOrder({
   const currentPickIndex = getCurrentPickUser(currentPick, draftOrder.length)
   const isSnakeRound = round % 2 === 1
 
-  // Show order based on snake draft
   const displayOrder = isSnakeRound ? [...draftOrder].reverse() : draftOrder
 
   return (
@@ -439,7 +469,7 @@ function DraftTurnOrder({
           const actualIndex = isSnakeRound ? draftOrder.length - 1 - index : index
           const isCurrent = actualIndex === currentPickIndex
           const isCurrentUser = userId === currentUserId
-          const username = teamNames.get(userId) || 'Loading...'
+          const username = teamNames.get(userId) || `User ${userId.slice(0, 8)}`
 
           return (
             <div
