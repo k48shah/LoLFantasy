@@ -33,26 +33,8 @@ export default function DraftPage() {
     try {
         console.log('🔍 Loading draft for user:', user?.id)
 
-        // First try to find league where user is owner
-        let { data: leagueData, error } = await supabase
-        .from('leagues')
-        .select('*')
-        .eq('owner_id', user!.id)
-        .maybeSingle()
-
-        console.log('Owner query:', leagueData, error)
-
-        // If not owner, check if user is in draft_order (member of a league)
-        if (!leagueData) {
-        const { data: memberLeague } = await supabase
-            .from('leagues')
-            .select('*')
-            .contains('draft_order', [user!.id])
-            .maybeSingle()
-
-        console.log('Member query:', memberLeague)
-        leagueData = memberLeague
-        }
+        // Use the helper function instead of manual queries
+        const leagueData = await getUserLeague(user!.id)
 
         if (!leagueData) {
         console.error('❌ No league found for user')
