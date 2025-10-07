@@ -13,66 +13,78 @@ export default function JoinLeaguePage() {
   const [loading, setLoading] = useState(false)
 
     async function joinLeague() {
-    if (!inviteCode.trim()) {
-        setError('Please enter an invite code')
-        return
-    }
-
-    setLoading(true)
-    setError('')
-
-    try {
-        console.log('Looking for league with code:', inviteCode.toUpperCase())
-
-        // Find league by invite code
-        const { data: league, error: leagueError } = await supabase
-        .from('leagues')
-        .select('*')
-        .eq('invite_code', inviteCode.toUpperCase())
-        .single()
-
-        console.log('League found:', league)
-
-        if (leagueError || !league) {
-        setError('Invalid invite code')
-        setLoading(false)
-        return
+        if (!inviteCode.trim()) {
+            setError('Please enter an invite code')
+            return
         }
 
-        // Check if already in league
-        const currentDraftOrder = league.draft_order as string[] || []
-        
-        if (currentDraftOrder.includes(user!.id)) {
-        setError('You are already in this league')
-        setLoading(false)
-        router.push('/draft')
-        return
+        setLoading(true)
+        setError('')
+
+        try {
+            console.log('Looking for league with code:', inviteCode.toUpperCase())
+
+            // Find league by invite code
+            const { data: league, error: leagueError } = await supabase
+            .from('leagues')
+            .select('*')
+            .eq('invite_code', inviteCode.toUpperCase())
+            .single()
+
+            console.log('League found:', league)
+            console.log('League error:', leagueError)
+
+            if (leagueError || !league) {
+            setError('Invalid invite code')
+            setLoading(false)
+            return
+            }
+
+            // Check if already in league
+            const currentDraftOrder = league.draft_order as string[] || []
+            
+            console.log('Current draft order:', currentDraftOrder)
+            console.log('User ID:', user!.id)
+            console.log('Already in league?', currentDraftOrder.includes(user!.id))
+            
+            if (currentDraftOrder.includes(user!.id)) {
+            console.log('User already in league, redirecting to draft')
+            router.push('/draft')
+            return
+            }
+
+            // Add user to draft order
+            const newDraftOrder = [...currentDraftOrder, user!.id]
+            
+            console.log('Updating draft order from', currentDraftOrder, 'to', newDraftOrder)
+
+            const { data: updateData, error: updateError } = await supabase
+            .from('leagues')
+            .update({ draft_order: newDraftOrder })
+            .eq('id', league.id)
+            .select()
+
+            console.log('Update result:', updateData)
+            console.log('Update error:', updateError)
+
+            if (updateError) {
+            console.error('Error updating draft order:', updateError)
+            setError(`Failed to join league: ${updateError.message}`)
+            setLoading(false)
+            return
+            }
+
+            console.log('✅ Successfully joined league!')
+            
+            // Wait a moment for the database to update
+            await new Promise(resolve => setTimeout(resolve, 500))
+            
+            router.push('/draft')
+        } catch (err) {
+            console.error('Error joining league:', err)
+            setError('Failed to join league')
+            setLoading(false)
         }
-
-        // Add user to draft order
-        const newDraftOrder = [...currentDraftOrder, user!.id]
-        
-        console.log('Updating draft order from', currentDraftOrder, 'to', newDraftOrder)
-
-        const { error: updateError } = await supabase
-        .from('leagues')
-        .update({ draft_order: newDraftOrder })
-        .eq('id', league.id)
-
-        if (updateError) {
-        console.error('Error updating draft order:', updateError)
-        setError('Failed to join league')
-        setLoading(false)
-        return
-        }
-
-        console.log('✅ Successfully joined league!')
-        router.push('/draft')
-    } catch (err) {
-        console.error('Error joining league:', err)
-        setError('Failed to join league')
-        setLoading(false)
-    }
     }
 
   return (
