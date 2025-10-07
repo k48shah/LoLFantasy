@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { getUserLeague } from '../../lib/league-helpers'
 import { useAuth } from '../../components/AuthProvider'
 import { BarChart3, Trophy, TrendingUp, Loader2, RefreshCw } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -37,11 +38,7 @@ export default function StandingsPage() {
   async function loadStandings() {
     try {
       // Get user's league
-      const { data: leagueData } = await supabase
-        .from('leagues')
-        .select('id')
-        .eq('owner_id', user!.id)
-        .single()
+      const leagueData = await getUserLeague(user!.id)
 
       if (!leagueData) return
 

@@ -33,51 +33,62 @@ export default function DraftPage() {
     try {
         console.log('🔍 Loading draft for user:', user?.id)
 
-        // Simple query without joins
-        const { data: leagueData, error } = await supabase
+        // First try to find league where user is owner
+        let { data: leagueData, error } = await supabase
         .from('leagues')
         .select('*')
         .eq('owner_id', user!.id)
         .maybeSingle()
 
-        console.log('League data:', leagueData, 'Error:', error)
+        console.log('Owner query:', leagueData, error)
 
-        if (error) {
-        console.error('Error loading league:', error)
+        // If not owner, check if user is in draft_order (member of a league)
+        if (!leagueData) {
+        const { data: memberLeague } = await supabase
+            .from('leagues')
+            .select('*')
+            .contains('draft_order', [user!.id])
+            .maybeSingle()
+
+        console.log('Member query:', memberLeague)
+        leagueData = memberLeague
+        }
+
+        if (!leagueData) {
+        console.error('❌ No league found for user')
         setLoading(false)
         return
         }
 
-        if (leagueData) {
+        console.log('✅ League found:', leagueData.name)
         setLeague(leagueData)
         setCurrentPick(leagueData.current_pick)
         
         // Check if it's user's turn
         const draftOrder = leagueData.draft_order as string[]
         if (draftOrder && draftOrder.length > 0) {
-            const currentUserIndex = getCurrentPickUser(leagueData.current_pick, draftOrder.length)
-            setIsMyTurn(draftOrder[currentUserIndex] === user!.id)
+        const currentUserIndex = getCurrentPickUser(leagueData.current_pick, draftOrder.length)
+        setIsMyTurn(draftOrder[currentUserIndex] === user!.id)
         }
 
         // Load all players
         const { data: playersData } = await supabase
-            .from('players')
-            .select('*')
-            .order('name')
+        .from('players')
+        .select('*')
+        .order('name')
 
         if (playersData) {
-            setPlayers(playersData)
+        setPlayers(playersData)
         }
 
         // Load drafted players
         const { data: rostersData } = await supabase
-            .from('fantasy_rosters')
-            .select('player_id')
-            .eq('league_id', leagueData.id)
+        .from('fantasy_rosters')
+        .select('player_id')
+        .eq('league_id', leagueData.id)
 
         if (rostersData) {
-            setDraftedPlayers(new Set(rostersData.map(r => r.player_id)))
-        }
+        setDraftedPlayers(new Set(rostersData.map(r => r.player_id)))
         }
 
         setLoading(false)

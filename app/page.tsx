@@ -12,11 +12,6 @@ export default function Home() {
   const [checkingLeague, setCheckingLeague] = useState(true)
 
   useEffect(() => {
-    console.log('Env check:', {
-        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL
-    })
     if (user) {
       checkLeagueMembership()
     } else if (!loading) {

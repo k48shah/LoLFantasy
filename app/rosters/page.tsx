@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../components/AuthProvider'
 import { Player, FantasyRoster, User } from '../../lib/supabase'
+import { getUserLeague } from '../../lib/league-helpers'
 import { Users, ArrowRightLeft, Star, X } from 'lucide-react'
 
 interface RosterWithPlayer extends FantasyRoster {
@@ -49,11 +50,7 @@ export default function RostersPage() {
   async function loadRosters() {
     try {
       // Get user's league
-      const { data: leagueData } = await supabase
-        .from('leagues')
-        .select('id')
-        .eq('owner_id', user!.id)
-        .single()
+      const leagueData = await getUserLeague(user!.id)
 
       if (!leagueData) return
 

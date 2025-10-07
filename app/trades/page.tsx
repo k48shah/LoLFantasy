@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { getUserLeague } from '../../lib/league-helpers'
 import { useAuth } from '../../components/AuthProvider'
 import { Trade, Player, User } from '../../lib/supabase'
 import { ArrowRightLeft, Check, X, Clock } from 'lucide-react'
@@ -53,11 +54,7 @@ export default function TradesPage() {
 
   async function loadTrades() {
     try {
-      const { data: leagueData } = await supabase
-        .from('leagues')
-        .select('id')
-        .eq('owner_id', user!.id)
-        .single()
+      const leagueData = await getUserLeague(user!.id)
 
       if (!leagueData) return
 
@@ -86,11 +83,7 @@ export default function TradesPage() {
 
   async function loadPlayers() {
     try {
-      const { data: leagueData } = await supabase
-        .from('leagues')
-        .select('id')
-        .eq('owner_id', user!.id)
-        .single()
+      const leagueData = await getUserLeague(user!.id)
 
       if (!leagueData) return
 

@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 
 export async function getUserLeague(userId: string) {
-  // First check if user has a roster (is a member)
+  // Method 1: Check if user has a roster (has drafted players)
   const { data: rosterData } = await supabase
     .from('fantasy_rosters')
     .select(`
@@ -10,19 +10,31 @@ export async function getUserLeague(userId: string) {
     `)
     .eq('user_id', userId)
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (rosterData?.leagues) {
     return rosterData.leagues as any
   }
 
-  // If no roster, check if user owns a league
+  // Method 2: Check if user owns a league
   const { data: ownedLeague } = await supabase
     .from('leagues')
     .select('*')
     .eq('owner_id', userId)
     .limit(1)
-    .single()
+    .maybeSingle()
 
-  return ownedLeague
+  if (ownedLeague) {
+    return ownedLeague
+  }
+
+  // Method 3: Check if user is in draft_order (joined but not drafted yet)
+  const { data: memberLeague } = await supabase
+    .from('leagues')
+    .select('*')
+    .contains('draft_order', [userId])
+    .limit(1)
+    .maybeSingle()
+
+  return memberLeague
 }
