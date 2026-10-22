@@ -1,4 +1,4 @@
--- Wipes every Worlds Fantasy object so schema.sql can be run on a clean slate.
+-- Wipes every Fantasy with the Boiz object so schema.sql can be run on a clean slate.
 -- Safe to run on an empty database. It does NOT touch Supabase's own auth users.
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user() cascade;

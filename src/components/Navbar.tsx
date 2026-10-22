@@ -9,19 +9,31 @@ import { Field, Modal } from './ui'
 export function Logo({ className }: { className?: string }) {
   return (
     <span className={clsx('flex items-center gap-2.5', className)}>
-      <svg viewBox="0 0 64 64" className="h-8 w-8 drop-shadow-[0_0_8px_rgba(10,200,185,.5)]" aria-hidden>
+      <svg viewBox="0 0 64 64" className="h-9 w-9 shrink-0 drop-shadow-[0_0_8px_rgba(10,200,185,.45)]" aria-hidden>
         <defs>
           <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#f0e6d2" />
             <stop offset="1" stopColor="#9a7634" />
           </linearGradient>
+          <linearGradient id="lc" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#f6ecd2" />
+            <stop offset="1" stopColor="#b8934a" />
+          </linearGradient>
         </defs>
         <path d="M32 3l25 14.5v29L32 61 7 46.500v-29z" fill="#050f1e" stroke="url(#lg)" strokeWidth="3" />
-        <path d="M32 15l15 8.500v17L32 49 17 40.500v-17z" fill="#0ac8b9" />
-        <path d="M32 15l15 8.500L32 32 17 23.500z" fill="#6fe6dc" />
+        <path d="M32 9l20 11.500v23L32 55 12 43.500v-23z" fill="#0ac8b9" fillOpacity=".12" />
+        {/* crown */}
+        <path d="M16 25l9 9 7-12 7 12 9-9-3.500 19h-25z" fill="url(#lc)" />
+        <rect x="20" y="46" width="24" height="3.500" rx="1.500" fill="#0ac8b9" />
+        <circle cx="32" cy="18" r="2.800" fill="#6fe6dc" />
+        <circle cx="16" cy="23" r="2.200" fill="#6fe6dc" />
+        <circle cx="48" cy="23" r="2.200" fill="#6fe6dc" />
       </svg>
-      <span className="font-display text-lg font-extrabold uppercase leading-none tracking-[0.14em] text-gold-100">
-        Worlds <span className="text-hex-400">Fantasy</span>
+      <span className="font-display font-extrabold leading-none text-gold-100">
+        <span className="block text-[15px] uppercase tracking-[0.16em] sm:text-lg">Fantasy</span>
+        <span className="mt-0.5 block text-[10px] uppercase tracking-[0.22em] text-hex-400 sm:text-[11px]">
+          with the <span className="text-gold-300">Boiz</span>
+        </span>
       </span>
     </span>
   )
@@ -54,7 +66,7 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-40 border-b border-gold-400/15 bg-ink-950/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6">
-        <Link to="/" aria-label="Worlds Fantasy home">
+        <Link to="/" aria-label="Fantasy with the Boiz home">
           <Logo />
         </Link>
         <div className="hidden items-center gap-1 md:flex">
@@ -78,7 +90,7 @@ export function Navbar() {
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-b from-gold-300 to-gold-600 text-[11px] font-extrabold text-ink-950">
                   {(profile?.username ?? '?').slice(0, 1).toUpperCase()}
                 </span>
-                <span className="max-w-[9rem] truncate">{profile?.username ?? '…'}</span>
+                <span className="hidden max-w-[9rem] truncate sm:inline">{profile?.username ?? '…'}</span>
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {menu && (

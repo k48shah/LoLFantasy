@@ -46,7 +46,7 @@ export default function App() {
         )}
       </main>
       <footer className="border-t border-gold-400/10 py-6 text-center text-xs text-slate-500">
-        Worlds Fantasy · built for friends · game data from Riot's LoL Esports feed · not endorsed by Riot Games
+        Fantasy with the Boiz · built for friends · game data from Riot's LoL Esports feed · not endorsed by Riot Games
       </footer>
       <DemoBar />
           </div>

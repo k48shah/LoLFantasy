@@ -13,7 +13,7 @@ export function LeagueLayout() {
   const o = q.data
 
   const myTurn = !!o && o.league.status === 'drafting' && o.league.on_clock === o.me
-  useDocumentTitle(o ? `${myTurn ? '● YOUR PICK · ' : ''}${o.league.name} · Worlds Fantasy` : null)
+  useDocumentTitle(o ? `${myTurn ? '● YOUR PICK · ' : ''}${o.league.name} · Fantasy with the Boiz` : null)
 
   if (q.loading && !o) return <PageLoader label="Loading league…" />
   if (!o) {

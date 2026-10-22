@@ -1,5 +1,5 @@
 -- =====================================================================
---  Worlds Fantasy  ·  database schema
+--  Fantasy with the Boiz  ·  database schema
 --  Paste this whole file into Supabase → SQL Editor → Run.
 --  (Run supabase/reset.sql first if you have old tables lying around.)
 --

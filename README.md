@@ -1,4 +1,4 @@
-# Worlds Fantasy
+# Fantasy with the Boiz
 
 A private fantasy league for LoL Worlds. Friends join with an invite link and **draft on their own time**
 (snake order + pick clock + queue + auto-pick), then earn points from real per-game stats.

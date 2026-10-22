@@ -195,7 +195,9 @@ test('auto-draft managers pick instantly and never block humans behind them', as
   const [m1, m2, m3, m4] = (await state(db, owner, league)).members.map((m) => m.user_id)
   await rpc(db, m2, 'set_autodraft', { p_league: league, p_user: m2, p_on: true })
   await rpc(db, m3, 'set_autodraft', { p_league: league, p_user: m3, p_on: true })
-  await expectError(rpc(db, m2, 'set_autodraft', { p_league: league, p_user: m1, p_on: true }), /owner/)
+  // draft order is random, so find two managers who are NOT the owner
+  const [nonOwnerA, nonOwnerB] = [m1, m2, m3, m4].filter((u) => u !== owner)
+  await expectError(rpc(db, nonOwnerA, 'set_autodraft', { p_league: league, p_user: nonOwnerB, p_on: true }), /owner/)
 
   await rpc(db, m1, 'make_pick', { p_league: league, p_player: idOf('mid', 1) })
   let s = await state(db, owner, league)
