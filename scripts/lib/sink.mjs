@@ -24,6 +24,10 @@ export function supabaseSink() {
         must(await db.from(table).upsert(rows.slice(i, i + 400), { onConflict: KEYS[table], ignoreDuplicates }), `upsert ${table}`)
       }
     },
+    /** Partial UPDATE of one row (an upsert would try to INSERT and trip NOT NULL columns). */
+    async patch(table, id, fields) {
+      must(await db.from(table).update(fields).eq('id', id), `update ${table}`)
+    },
     async ids(table, column = 'id') {
       const out = new Set()
       for (let from = 0; ; from += 1000) {
@@ -69,6 +73,10 @@ export function jsonSink(file) {
         if (ignoreDuplicates && tables[table].has(k)) continue
         tables[table].set(k, { ...tables[table].get(k), ...row })
       }
+    },
+    async patch(table, id, fields) {
+      const row = tables[table].get(String(id))
+      if (row) Object.assign(row, fields)
     },
     async ids(table, column = 'id') {
       return new Set([...tables[table].values()].map((r) => r[column]))

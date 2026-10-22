@@ -1,10 +1,8 @@
-import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Navbar } from './components/Navbar'
-import { PageLoader, Modal, Field } from './components/ui'
+import { PageLoader } from './components/ui'
 import { useAuth } from './lib/auth'
 import { isConfigured } from './lib/backend'
-import { useToast } from './lib/toast'
 import { Home } from './pages/Home'
 import { JoinPage } from './pages/Join'
 import { LeagueLayout } from './pages/league/LeagueLayout'
@@ -21,7 +19,7 @@ import { SetupNeeded } from './pages/SetupNeeded'
 import { NotFound } from './pages/NotFound'
 
 export default function App() {
-  const { status, recovering } = useAuth()
+  const { status } = useAuth()
   if (!isConfigured()) return <SetupNeeded />
   return (
     <div className="flex min-h-screen flex-col">
@@ -51,36 +49,6 @@ export default function App() {
         Worlds Fantasy · built for friends · game data from Riot's LoL Esports feed · not endorsed by Riot Games
       </footer>
       <DemoBar />
-      {recovering && <RecoveryModal />}
-    </div>
-  )
-}
-
-function RecoveryModal() {
-  const { setPassword, finishRecovery } = useAuth()
-  const toast = useToast()
-  const [pw, setPw] = useState('')
-  const [busy, setBusy] = useState(false)
-  return (
-    <Modal open onClose={finishRecovery} title="Choose a new password">
-      <form
-        className="space-y-4"
-        onSubmit={async (e) => {
-          e.preventDefault()
-          if (pw.length < 6) return toast.error('Use at least 6 characters.')
-          setBusy(true)
-          const res = await toast.attempt(() => setPassword(pw), 'Password updated.')
-          setBusy(false)
-          if (res.ok) finishRecovery()
-        }}
-      >
-        <Field label="New password">
-          <input className="input" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} minLength={6} required />
-        </Field>
-        <button className="btn-gold w-full" disabled={busy}>
-          Save password
-        </button>
-      </form>
-    </Modal>
+          </div>
   )
 }

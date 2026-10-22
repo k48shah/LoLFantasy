@@ -8,8 +8,6 @@ export interface AuthUser {
 
 export interface AuthEvent {
   user: AuthUser | null
-  /** True when the user arrived from a password-reset email. */
-  recovery?: boolean
 }
 
 export interface Backend {
@@ -18,11 +16,9 @@ export interface Backend {
   auth: {
     getUser(): Promise<AuthUser | null>
     onChange(cb: (e: AuthEvent) => void): () => void
-    signUp(email: string, password: string, username: string): Promise<{ needsConfirmation: boolean }>
-    signIn(email: string, password: string): Promise<void>
+    /** Redirects to Google (production) or signs in as a named demo user (demo). */
+    signInWithGoogle(demoName?: string): Promise<void>
     signOut(): Promise<void>
-    sendReset(email: string): Promise<void>
-    setPassword(password: string): Promise<void>
   }
   /** Only present in demo mode. */
   demo?: {

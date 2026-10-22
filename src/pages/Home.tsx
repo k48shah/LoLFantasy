@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, BellRing, KeyRound, Plus, Swords, Timer, TrendingUp, Users } from 'lucide-react'
 import clsx from 'clsx'
-import { AuthCard } from '../components/AuthCard'
+import { AuthCard, takeReturnTo } from '../components/AuthCard'
 import { Countdown, RoleBadge, StatusPill } from '../components/game'
 import { LeagueSettingsForm } from '../components/LeagueSettingsForm'
 import { EmptyState, ErrorBox, Modal, PageHeader, Skeleton } from '../components/ui'
@@ -73,17 +73,10 @@ function Dashboard() {
   const [joining, setJoining] = useState(false)
   const [code, setCode] = useState('')
 
-  // Someone opened an invite link before signing in? Pick up where they left off.
+  // Came back from Google after opening an invite link or league page? Continue there.
   useEffect(() => {
-    try {
-      const pending = localStorage.getItem('pending-join')
-      if (pending) {
-        localStorage.removeItem('pending-join')
-        nav(`/join/${pending}`, { replace: true })
-      }
-    } catch {
-      /* ignore */
-    }
+    const back = takeReturnTo()
+    if (back && back !== '/') nav(back, { replace: true })
   }, [nav])
 
   const list = leagues.data ?? []

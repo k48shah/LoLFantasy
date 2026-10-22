@@ -15,14 +15,6 @@ export function JoinPage() {
   const preview = useQuery(() => api.preview(code), [code])
 
   useEffect(() => {
-    try {
-      localStorage.removeItem('pending-join')
-    } catch {
-      /* ignore */
-    }
-  }, [])
-
-  useEffect(() => {
     if (preview.data?.already_member) nav(`/league/${preview.data.id}`, { replace: true })
   }, [preview.data, nav])
 

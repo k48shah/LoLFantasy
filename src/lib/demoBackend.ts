@@ -104,16 +104,8 @@ export async function createDemoBackend(): Promise<Backend> {
         listeners.add(cb)
         return () => listeners.delete(cb)
       },
-      async signUp(email, _password, username) {
-        const name = (username || email.split('@')[0]).replace(/[^A-Za-z0-9_-]/g, '') || 'player'
-        uid = await ensureUser(name)
-        sessionStorage.setItem('demo-user', name)
-        await seedLeague(uid)
-        emit(toUser(uid, name))
-        return { needsConfirmation: false }
-      },
-      async signIn(email) {
-        const name = email.split('@')[0].replace(/[^A-Za-z0-9_-]/g, '') || 'player'
+      async signInWithGoogle(demoName) {
+        const name = (demoName ?? '').replace(/[^A-Za-z0-9_-]/g, '') || 'player'
         uid = await ensureUser(name)
         sessionStorage.setItem('demo-user', name)
         await seedLeague(uid)
@@ -124,8 +116,6 @@ export async function createDemoBackend(): Promise<Backend> {
         sessionStorage.removeItem('demo-user')
         emit(null)
       },
-      async sendReset() {},
-      async setPassword() {},
     },
     demo: {
       async expireClock(leagueId) {

@@ -202,7 +202,7 @@ async function ingestStats(sink, matches, tournamentSlug) {
       gameRows.forEach((g) => knownGames.add(g.id))
     }
     const finished = m.state === 'completed' && complete
-    await sink.upsert('matches', [{ id: m.id, best_of: detail.strategy?.count ?? null, ingested: finished }])
+    await sink.patch('matches', m.id, { best_of: detail.strategy?.count ?? null, ingested: finished })
     if (gameRows.length) console.log(`  match ${m.id}: +${gameRows.length} game(s)`)
   }
   console.log(`  ${newGames} new game(s) recorded`)

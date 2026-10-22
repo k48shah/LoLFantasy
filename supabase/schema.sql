@@ -30,7 +30,11 @@ declare
   candidate text;
   tries int := 0;
 begin
-  base := left(regexp_replace(coalesce(new.raw_user_meta_data ->> 'username', ''), '[^A-Za-z0-9_-]', '', 'g'), 20);
+  base := left(regexp_replace(coalesce(
+    nullif(new.raw_user_meta_data ->> 'username', ''),
+    nullif(new.raw_user_meta_data ->> 'name', ''),
+    nullif(new.raw_user_meta_data ->> 'full_name', ''),
+    split_part(coalesce(new.email, ''), '@', 1), ''), '[^A-Za-z0-9_-]', '', 'g'), 20);
   if char_length(base) < 2 then
     base := 'player' || substr(replace(new.id::text, '-', ''), 1, 4);
   end if;

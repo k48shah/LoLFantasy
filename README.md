@@ -11,9 +11,12 @@ A private fantasy league for LoL Worlds. Friends join with an invite link and **
 
 ### 1. Supabase
 1. SQL Editor → run `supabase/reset.sql` (clears old tables), then `supabase/schema.sql`.
-2. Authentication → Providers → Email: turn **off** "Confirm email" (easiest for friends).
-3. Authentication → URL Configuration: set Site URL to your GitHub Pages URL (needed for password-reset emails).
-4. Settings → API: copy the project URL, `anon` key and `service_role` key.
+2. **Google sign-in** (nobody types a password on the site):
+   1. [Google Cloud Console](https://console.cloud.google.com/) → create/select a project → *APIs & Services → OAuth consent screen* (External, add your app name + email; publish it so friends outside your Google org can log in).
+   2. *Credentials → Create credentials → OAuth client ID → Web application*. Under **Authorized redirect URIs** add `https://<your-project-ref>.supabase.co/auth/v1/callback`.
+   3. Copy the Client ID and Client secret into Supabase → Authentication → Providers → **Google** → enable → Save.
+   4. Supabase → Authentication → URL Configuration: set **Site URL** to your GitHub Pages URL (`https://k48shah.github.io/LoLFantasy/`) and add the same URL under **Redirect URLs**.
+3. Settings → API: copy the project URL, `anon` key and `service_role` key.
 
 ### 2. GitHub repo (Settings → Secrets and variables → Actions)
 | Secret | Value |

@@ -12,15 +12,9 @@ interface AuthValue {
   user: AuthUser | null
   profile: Profile | null
   backend: Backend | null
-  /** Arrived via a password-reset email and must choose a new password. */
-  recovering: boolean
-  signIn(email: string, password: string): Promise<void>
-  signUp(email: string, password: string, username: string): Promise<{ needsConfirmation: boolean }>
+  signInWithGoogle(demoName?: string): Promise<void>
   signOut(): Promise<void>
-  sendReset(email: string): Promise<void>
-  setPassword(password: string): Promise<void>
   renameSelf(username: string): Promise<void>
-  finishRecovery(): void
 }
 
 const Ctx = createContext<AuthValue | null>(null)
@@ -30,7 +24,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [status, setStatus] = useState<Status>('loading')
-  const [recovering, setRecovering] = useState(false)
 
   useEffect(() => {
     let off = () => {}
@@ -46,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       off = b.auth.onChange((e) => {
         setUser(e.user)
         setStatus(e.user ? 'in' : 'out')
-        if (e.recovery) setRecovering(true)
         if (!e.user) setProfile(null)
       })
     })().catch(() => setStatus('out'))
@@ -89,19 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       backend,
-      recovering,
-      signIn: (email, password) => need().auth.signIn(email, password),
-      signUp: (email, password, username) => need().auth.signUp(email, password, username),
+      signInWithGoogle: (demoName) => need().auth.signInWithGoogle(demoName),
       signOut: () => need().auth.signOut(),
-      sendReset: (email) => need().auth.sendReset(email),
-      setPassword: (password) => need().auth.setPassword(password),
       renameSelf: async (username) => {
         await api.updateUsername(username)
         setProfile(await api.profile())
       },
-      finishRecovery: () => setRecovering(false),
     }),
-    [status, user, profile, backend, recovering, need],
+    [status, user, profile, backend, need],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

@@ -30,31 +30,20 @@ export function createSupabaseBackend(): Backend {
         return toUser(data.session?.user)
       },
       onChange(cb) {
-        const { data } = client.auth.onAuthStateChange((event, session) => {
-          cb({ user: toUser(session?.user), recovery: event === 'PASSWORD_RECOVERY' })
+        const { data } = client.auth.onAuthStateChange((_event, session) => {
+          cb({ user: toUser(session?.user) })
         })
         return () => data.subscription.unsubscribe()
       },
-      async signUp(email, password, username) {
-        const { data, error } = await client.auth.signUp({ email, password, options: { data: { username } } })
-        if (error) throw new Error(friendly(error.message))
-        // With "Confirm email" switched on in Supabase there is no session until the link is clicked.
-        return { needsConfirmation: !data.session }
-      },
-      async signIn(email, password) {
-        const { error } = await client.auth.signInWithPassword({ email, password })
+      async signInWithGoogle() {
+        const { error } = await client.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin + window.location.pathname, queryParams: { prompt: 'select_account' } },
+        })
         if (error) throw new Error(friendly(error.message))
       },
       async signOut() {
         await client.auth.signOut()
-      },
-      async sendReset(email) {
-        const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname })
-        if (error) throw new Error(friendly(error.message))
-      },
-      async setPassword(password) {
-        const { error } = await client.auth.updateUser({ password })
-        if (error) throw new Error(friendly(error.message))
       },
     },
   }

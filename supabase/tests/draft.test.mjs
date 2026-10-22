@@ -361,3 +361,14 @@ test('sealed draft starts immediately once every manager has locked in', async (
   for (const u of Object.values(users)) await rpc(db, u, 'set_autodraft', { p_league: league, p_user: u, p_on: true })
   assert.equal((await state(db, owner, league)).league.status, 'active')
 })
+
+test('Google-style sign-ups get a sensible username from their profile', async () => {
+  const db = await newDb()
+  await db.query(`insert into auth.users (email, raw_user_meta_data) values ('ada@gmail.com', '{"name":"Ada Lovelace","full_name":"Ada Lovelace"}')`)
+  await db.query(`insert into auth.users (email, raw_user_meta_data) values ('ada.l@gmail.com', '{"name":"Ada Lovelace"}')`)
+  await db.query(`insert into auth.users (email, raw_user_meta_data) values ('solo@gmail.com', '{}')`)
+  const names = (await db.query(`select username from profiles order by created_at`)).rows.map((r) => r.username)
+  assert.equal(names[0], 'AdaLovelace')
+  assert.match(names[1], /^AdaLovelace\d{4}$/, 'collision gets a suffix')
+  assert.equal(names[2], 'solo')
+})
