@@ -1,0 +1,33 @@
+name: Sync rosters
+
+# Rebuilds the draft pool (who is actually playing at Worlds). Run it by hand from the
+# Actions tab right after changing scripts/data/overrides.json, or let the daily run do it.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      tournament:
+        description: 'Tournament slug (blank = auto-detect, e.g. worlds_2026)'
+        required: false
+
+concurrency:
+  group: riot-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev --ignore-scripts
+      - run: node scripts/sync.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TOURNAMENT_SLUG: ${{ inputs.tournament }}

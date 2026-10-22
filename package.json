@@ -1,35 +1,34 @@
 {
-  "name": "lol-fantasy-mvp",
-  "version": "1.0.0",
+  "name": "worlds-fantasy",
+  "version": "2.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "vite",
+    "dev:demo": "vite --mode demo",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "node --test supabase/tests/",
+    "sync": "node scripts/sync.mjs",
+    "sync:dry": "node scripts/sync.mjs --dry"
   },
   "dependencies": {
-    "@supabase/auth-helpers-nextjs": "^0.8.7",
-    "@supabase/supabase-js": "^2.39.0",
-    "clsx": "^2.0.0",
-    "date-fns": "^3.0.0",
-    "dotenv": "^17.2.3",
-    "lucide-react": "^0.544.0",
-    "next": "^14.2.33",
+    "@supabase/supabase-js": "^2.45.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.10.0",
-    "tailwind": "^2.3.1"
+    "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "autoprefixer": "^10.4.21",
-    "eslint": "^8.55.0",
-    "eslint-config-next": "^14.0.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.18",
-    "typescript": "^5.3.0"
+    "@electric-sql/pglite": "^0.2.17",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
   }
 }

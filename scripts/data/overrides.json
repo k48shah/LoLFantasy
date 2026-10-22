@@ -1,0 +1,6 @@
+{
+  "_help": "Fix the player pool by hand if Riot's data is wrong. Entries are Riot player ids, or 'CODE:handle' (e.g. 'T1:Faker'). 'include' forces a player into the draft pool, 'exclude' removes them. seed_adjust nudges the auto-pick rating, e.g. {\"T1:Faker\": 6}. Applies on the next roster sync (Actions > Sync rosters > Run workflow).",
+  "include": [],
+  "exclude": [],
+  "seed_adjust": {}
+}
