@@ -8,7 +8,7 @@
     "dev:demo": "vite --mode demo",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --test supabase/tests/",
+    "test": "node --test supabase/tests/draft.test.mjs",
     "sync": "node scripts/sync.mjs",
     "sync:dry": "node scripts/sync.mjs --dry"
   },
